@@ -20,12 +20,8 @@ def menu():
     markup.add(types.InlineKeyboardButton("🗝️ Открыть конфигуратор", url=SITE_URL))
     markup.add(types.InlineKeyboardButton("🌍 Сообщить об ошибке", callback_data="report"))
     markup.add(types.InlineKeyboardButton("❤️ О проекте", callback_data="about"))
-        keyboard.add(
-        types.InlineKeyboardButton(
-            "💬 Оставить отзыв",
-            callback_data="review",
-        )
-    ) return markur 
+    markup.add(types.InlineKeyboardButton("💬 Оставить отзыв", callback_data="review"))
+    return markup
 
 reviews = set()
 
