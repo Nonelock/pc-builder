@@ -1,144 +1,107 @@
-import json
 import os
-from pathlib import Path
+import logging
+import threading
+from html import escape
 
 import telebot
 from telebot import types
 
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.environ["ADMIN_ID"])
+logging.basicConfig(level=logging.INFO)
+TOKEN = os.environ["BOT_TOKEN"].strip()
+ADMIN_ID = int(os.environ["ADMIN_ID"].strip())
 SITE_URL = "https://nonelock.github.io/pc-builder/"
-DATA_FILE = Path("bot_data.json")
-
-if not BOT_TOKEN:
-    raise RuntimeError("Не найдена переменная окружения BOT_TOKEN")
-
-bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML")
+bot = telebot.TeleBot(TOKEN)
+waiting = set()
+lock = threading.Lock()
 
 
-def load_data():
-    if not DATA_FILE.exists():
-        return {"admin_id": None, "report_waiting": []}
-    try:
-        return json.loads(DATA_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {"admin_id": None, "report_waiting": []}
-
-
-def save_data(data):
-    DATA_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-def keyboard():
+def menu():
     markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(types.InlineKeyboardButton("🖥 Открыть конфигуратор", url=SITE_URL))
-    markup.add(
-        types.InlineKeyboardButton("🐞 Сообщить об ошибке", callback_data="report"),
-        types.InlineKeyboardButton("ℹ️ О проекте", callback_data="about"),
-    )
+    markup.add(types.InlineKeyboardButton("Открыть конфигуратор", url=SITE_URL))
+    markup.add(types.InlineKeyboardButton("Сообщить об ошибке", callback_data="report"))
+    markup.add(types.InlineKeyboardButton("О проекте", callback_data="about"))
     return markup
 
 
-def send_menu(chat_id, text=None):
-    text = text or (
-        "👋 <b>Добро пожаловать в PC Сборщик!</b>\n\n"
-        "Открой конфигуратор, подбери комплектующие и сообщи об ошибке в данных."
-    )
-    bot.send_message(chat_id, text, reply_markup=keyboard())
+def begin_report(chat_id):
+    with lock:
+        waiting.add(chat_id)
+    bot.send_message(chat_id, "Опиши проблему одним текстовым сообщением. /cancel — отмена.")
 
 
-@bot.message_handler(commands=["start"])
+@bot.message_handler(commands=["start", "site", "help"])
 def start(message):
+    if message.chat.type != "private":
+        bot.reply_to(message, "Напиши боту в личные сообщения.")
+        return
+    text = "Добро пожаловать в PC Сборщик!"
     if message.from_user.id == ADMIN_ID:
-        bot.send_message(
-            message.chat.id,
-            "✅ Ты администратор этого бота."
-        )
-    send_menu(message.chat.id)
+        text += "\nТы администратор этого бота."
+    bot.send_message(message.chat.id, text, reply_markup=menu())
 
 
-@bot.message_handler(commands=["site"])
-def site(message):
-    bot.send_message(message.chat.id, "🖥 Открыть конфигуратор:", reply_markup=keyboard())
-
-
-@bot.message_handler(commands=["about"])
-def about(message):
-    bot.send_message(
-        message.chat.id,
-        "ℹ️ <b>PC Сборщик</b>\n\n"
-        "Проект для подбора комплектующих и базовой проверки совместимости ПК. "
-        "Перед покупкой обязательно сверяй характеристики на сайте производителя.",
-    )
-
-
-@bot.message_handler(commands=["help"])
-def help_command(message):
-    bot.send_message(message.chat.id, "/start — главное меню\n/site — открыть сайт\n/report — отправить отчёт\n/about — о проекте")
-
-
-def request_report(chat_id):
-    data = load_data()
-    waiting = data.get("report_waiting", [])
-    if chat_id not in waiting:
-        waiting.append(chat_id)
-    data["report_waiting"] = waiting
-    save_data(data)
-    bot.send_message(chat_id, "🐞 Опиши проблему одним сообщением. Например: «Деталь не отображается».")
+@bot.message_handler(commands=["id"])
+def show_id(message):
+    bot.reply_to(message, f"Твой Telegram ID: {message.from_user.id}")
 
 
 @bot.message_handler(commands=["report"])
 def report_command(message):
-    request_report(message.chat.id)
+    if message.chat.type == "private":
+        begin_report(message.chat.id)
 
 
-@bot.callback_query_handler(func=lambda call: True)
+@bot.message_handler(commands=["cancel"])
+def cancel(message):
+    with lock:
+        waiting.discard(message.chat.id)
+    bot.reply_to(message, "Отменено.")
+
+
+@bot.message_handler(commands=["about"])
+def about(message):
+    bot.send_message(message.chat.id, "PC Сборщик — подбор деталей и базовые проверки совместимости. Характеристики нужно сверять с документацией производителей.")
+
+
+@bot.callback_query_handler(func=lambda call: call.data in ["report", "about"])
 def callback(call):
-    if call.data == "report":
-        request_report(call.message.chat.id)
-        bot.answer_callback_query(call.id)
-    elif call.data == "about":
-        bot.answer_callback_query(call.id)
-        about(call.message)
+    bot.answer_callback_query(call.id)
+    if call.message and call.message.chat.type == "private":
+        if call.data == "report":
+            begin_report(call.message.chat.id)
+        else:
+            about(call.message)
 
 
 @bot.message_handler(content_types=["text"])
-def text(message):
-    data = load_data()
-    waiting = data.get("report_waiting", [])
-    if message.chat.id not in waiting:
-        send_menu(message.chat.id, "Используй кнопки меню или команду /help.")
+def receive_text(message):
+    if message.chat.type != "private":
         return
-    waiting.remove(message.chat.id)
-    data["report_waiting"] = waiting
-    save_data(data)
+    with lock:
+        pending = message.chat.id in waiting
+    if not pending:
+        bot.send_message(message.chat.id, "Выбери действие:", reply_markup=menu())
+        return
     user = message.from_user
     username = "@" + user.username if user.username else "без username"
-    report = (
-        "🐞 <b>Новый отчёт</b>\n\n"
-        f"<b>От:</b> {user.first_name} ({username})\n"
-        f"<b>ID:</b> <code>{user.id}</code>\n\n"
-        f"<b>Текст:</b>\n{message.text}"
+    header = (
+        "Новый отчёт\n"
+        f"От: {escape(user.first_name)} ({escape(username)})\n"
+        f"ID: {user.id}\n\n"
     )
-        try:
-        bot.send_message(admin_id, report)
+    try:
+        bot.send_message(ADMIN_ID, header, parse_mode="HTML")
+        bot.forward_message(ADMIN_ID, message.chat.id, message.message_id)
     except Exception as error:
-        print(
-            f"Report delivery failed: {type(error).__name__}: {error}",
-            flush=True
-        )
-        bot.send_message(
-            message.chat.id,
-            "❌ Отчёт не доставлен. Ошибка записана в журнал."
-        )
+        detail = str(error).replace(TOKEN, "[TOKEN HIDDEN]")
+        logging.error("Report delivery failed: %s: %s", type(error).__name__, detail)
+        bot.send_message(message.chat.id, "Отчёт не доставлен. Попробуй позже или /cancel. Причина записана в Logs.")
         return
-
-    bot.send_message(
-        message.chat.id,
-        "✅ Спасибо! Отчёт доставлен разработчику."
-    )
+    with lock:
+        waiting.discard(message.chat.id)
+    bot.send_message(message.chat.id, "Спасибо! Отчёт доставлен разработчику.")
 
 
 if __name__ == "__main__":
-    print("PC Сборщик бот запущен")
-    bot.infinity_polling(skip_pending=True, timeout=30, long_polling_timeout=30)
+    print("PC Сборщик бот запущен", flush=True)
+    bot.infinity_polling(timeout=30, long_polling_timeout=30)
