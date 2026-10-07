@@ -68,11 +68,16 @@ def start(message):
         waiting.discard(message.chat.id)
         reviews.discard(message.chat.id)
 
-    text = "👋 Добро пожаловать в PC Сборщик!"
+        text = "👋 Добро пожаловать в PC Сборщик!"
 
     if message.from_user.id == ADMIN_ID:
-        text += "
-👑 Ты администратор этого бота."
+        text += " 👑 Ты администратор этого бота."
+
+    bot.send_message(
+        message.chat.id,
+        text,
+        reply_markup=menu(),
+    )
 
     bot.send_message(
         message.chat.id,
