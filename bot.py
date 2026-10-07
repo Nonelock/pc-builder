@@ -120,13 +120,23 @@ def text(message):
         f"<b>ID:</b> <code>{user.id}</code>\n\n"
         f"<b>Текст:</b>\n{message.text}"
     )
-    admin_id = ADMIN_ID
-    if admin_id:
         try:
-            bot.send_message(admin_id, report)
-        except Exception:
-            pass
-    bot.send_message(message.chat.id, "✅ Спасибо! Отчёт отправлен разработчику.")
+        bot.send_message(admin_id, report)
+    except Exception as error:
+        print(
+            f"Report delivery failed: {type(error).__name__}: {error}",
+            flush=True
+        )
+        bot.send_message(
+            message.chat.id,
+            "❌ Отчёт не доставлен. Ошибка записана в журнал."
+        )
+        return
+
+    bot.send_message(
+        message.chat.id,
+        "✅ Спасибо! Отчёт доставлен разработчику."
+    )
 
 
 if __name__ == "__main__":
