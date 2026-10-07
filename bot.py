@@ -17,16 +17,16 @@ lock = threading.Lock()
 
 def menu():
     markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(types.InlineKeyboardButton("Открыть конфигуратор", url=SITE_URL))
-    markup.add(types.InlineKeyboardButton("Сообщить об ошибке", callback_data="report"))
-    markup.add(types.InlineKeyboardButton("О проекте", callback_data="about"))
+    markup.add(types.InlineKeyboardButton("🗝️ Открыть конфигуратор", url=SITE_URL))
+    markup.add(types.InlineKeyboardButton("🌍 Сообщить об ошибке", callback_data="report"))
+    markup.add(types.InlineKeyboardButton("❤️ О проекте", callback_data="about"))
     return markup
 
 
 def begin_report(chat_id):
     with lock:
         waiting.add(chat_id)
-    bot.send_message(chat_id, "Опиши проблему одним текстовым сообщением. /cancel — отмена.")
+    bot.send_message(chat_id, " 🤝 Опиши проблему одним текстовым сообщением. /cancel — отмена.")
 
 
 @bot.message_handler(commands=["start", "site", "help"])
