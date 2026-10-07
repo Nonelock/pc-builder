@@ -89,9 +89,12 @@ def receive_review(message):
 
 def begin_report(chat_id):
     with lock:
+        reviews.discard(chat_id)
         waiting.add(chat_id)
-    bot.send_message(chat_id, " 🤝 Опиши проблему одним текстовым сообщением. /cancel — отмена.")
-
+    bot.send_message(
+        chat_id,
+        "🤝 Опиши проблему одним текстовым сообщением. /cancel — отмена.",
+    )
 
 @bot.message_handler(commands=["start", "site", "help"])
 def start(message):
