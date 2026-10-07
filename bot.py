@@ -47,7 +47,6 @@ def begin_review(call):
 ↩️ /cancel — отменить.",
     )
 
-
 @bot.message_handler(
     func=lambda message: message.chat.id in reviews,
     content_types=["text"],
