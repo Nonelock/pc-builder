@@ -119,7 +119,8 @@ def report_command(message):
 def cancel(message):
     with lock:
         waiting.discard(message.chat.id)
-    bot.reply_to(message, "Отменено.")
+        reviews.discard(message.chat.id)
+    bot.reply_to(message, "👌 Отменено.")
 
 
 @bot.message_handler(commands=["about"])
