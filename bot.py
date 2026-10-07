@@ -49,11 +49,11 @@ def send_menu(chat_id, text=None):
 
 @bot.message_handler(commands=["start"])
 def start(message):
-    data = load_data()
-    if data.get("admin_id") is None:
-        data["admin_id"] = message.from_user.id
-        save_data(data)
-        bot.send_message(message.chat.id, "✅ Ты назначен администратором. Отчёты будут приходить сюда.")
+    if message.from_user.id == ADMIN_ID:
+        bot.send_message(
+            message.chat.id,
+            "✅ Ты администратор этого бота."
+        )
     send_menu(message.chat.id)
 
 
