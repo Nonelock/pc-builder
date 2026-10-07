@@ -152,10 +152,9 @@ def receive_text(message):
         return
     user = message.from_user
     username = "@" + user.username if user.username else "без username"
-    header = (
-        "Новый отчёт\n"
-        f"От: {escape(user.first_name)} ({escape(username)})\n"
-        f"ID: {user.id}\n\n"
+        header = f"""💬 Новый отзыв
+👤 {user.first_name} ({username})
+🆔 {user.id}"""
     )
     try:
         bot.send_message(ADMIN_ID, header, parse_mode="HTML")
