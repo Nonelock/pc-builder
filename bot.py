@@ -120,7 +120,7 @@ def text(message):
         f"<b>ID:</b> <code>{user.id}</code>\n\n"
         f"<b>Текст:</b>\n{message.text}"
     )
-    admin_id = data.get("admin_id")
+    admin_id = ADMIN_ID
     if admin_id:
         try:
             bot.send_message(admin_id, report)
