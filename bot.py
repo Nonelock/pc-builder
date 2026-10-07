@@ -1,29 +1,119 @@
 import os
 import logging
 import threading
-from html import escape
 
 import telebot
 from telebot import types
 
+
 logging.basicConfig(level=logging.INFO)
+
 TOKEN = os.environ["BOT_TOKEN"].strip()
 ADMIN_ID = int(os.environ["ADMIN_ID"].strip())
 SITE_URL = "https://nonelock.github.io/pc-builder/"
+
 bot = telebot.TeleBot(TOKEN)
 waiting = set()
+reviews = set()
 lock = threading.Lock()
 
 
 def menu():
     markup = types.InlineKeyboardMarkup(row_width=1)
-    markup.add(types.InlineKeyboardButton("🗝️ Открыть конфигуратор", url=SITE_URL))
-    markup.add(types.InlineKeyboardButton("🌍 Сообщить об ошибке", callback_data="report"))
-    markup.add(types.InlineKeyboardButton("❤️ О проекте", callback_data="about"))
-    markup.add(types.InlineKeyboardButton("💬 Оставить отзыв", callback_data="review"))
+    markup.add(
+        types.InlineKeyboardButton(
+            "🗝️ Открыть конфигуратор",
+            url=SITE_URL,
+        )
+    )
+    markup.add(
+        types.InlineKeyboardButton(
+            "🌍 Сообщить об ошибке",
+            callback_data="report",
+        )
+    )
+    markup.add(
+        types.InlineKeyboardButton(
+            "❤️ О проекте",
+            callback_data="about",
+        )
+    )
+    markup.add(
+        types.InlineKeyboardButton(
+            "💬 Оставить отзыв",
+            callback_data="review",
+        )
+    )
     return markup
 
-reviews = set()
+
+def begin_report(chat_id):
+    with lock:
+        reviews.discard(chat_id)
+        waiting.add(chat_id)
+
+    bot.send_message(
+        chat_id,
+        "🤝 Опиши проблему одним текстовым сообщением. /cancel — отмена.",
+    )
+
+
+@bot.message_handler(commands=["start", "site", "help"])
+def start(message):
+    if message.chat.type != "private":
+        bot.reply_to(message, "Напиши боту в личные сообщения.")
+        return
+
+    with lock:
+        waiting.discard(message.chat.id)
+        reviews.discard(message.chat.id)
+
+    text = "👋 Добро пожаловать в PC Сборщик!"
+
+    if message.from_user.id == ADMIN_ID:
+        text += "
+👑 Ты администратор этого бота."
+
+    bot.send_message(
+        message.chat.id,
+        text,
+        reply_markup=menu(),
+    )
+
+
+@bot.message_handler(commands=["id"])
+def show_id(message):
+    bot.reply_to(
+        message,
+        f"Твой Telegram ID: {message.from_user.id}",
+    )
+
+
+@bot.message_handler(commands=["report"])
+def report_command(message):
+    if message.chat.type == "private":
+        begin_report(message.chat.id)
+
+
+@bot.message_handler(commands=["cancel"])
+def cancel(message):
+    with lock:
+        waiting.discard(message.chat.id)
+        reviews.discard(message.chat.id)
+
+    bot.send_message(
+        message.chat.id,
+        "👌 Отменено.",
+        reply_markup=menu(),
+    )
+
+
+@bot.message_handler(commands=["about"])
+def about(message):
+    bot.send_message(
+        message.chat.id,
+        "PC Сборщик — подбор деталей и базовые проверки совместимости. Характеристики нужно сверять с документацией производителей.",
+    )
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "review")
@@ -47,34 +137,61 @@ def begin_review(call):
 ↩️ /cancel — отменить.""",
     )
 
+
+@bot.callback_query_handler(
+    func=lambda call: call.data in ["report", "about"]
+)
+def callback(call):
+    bot.answer_callback_query(call.id)
+
+    if not call.message or call.message.chat.type != "private":
+        return
+
+    if call.data == "report":
+        begin_report(call.message.chat.id)
+    else:
+        about(call.message)
+
+
 @bot.message_handler(
     func=lambda message: message.chat.id in reviews,
     content_types=["text"],
 )
 def receive_review(message):
-    chat_id = message.chat.id
-
-    if message.text.split()[0].split("@")[0].lower() == "/cancel":
-        with lock:
-            reviews.discard(chat_id)
-        bot.send_message(chat_id, "👌 Отменено.", reply_markup=menu())
+    if message.chat.type != "private":
         return
 
+    chat_id = message.chat.id
+
     if message.text.startswith("/"):
-        bot.send_message(chat_id, "✍️ Напиши отзыв текстом или нажми /cancel.")
+        bot.send_message(
+            chat_id,
+            "✍️ Напиши отзыв текстом или нажми /cancel.",
+        )
         return
 
     user = message.from_user
     username = f"@{user.username}" if user.username else "без username"
-        header = f"💬 Новый отзыв
+
+    header = f"""💬 Новый отзыв
 👤 {user.first_name} ({username})
-🆔 {user.id}"
+🆔 {user.id}"""
 
     try:
         bot.send_message(ADMIN_ID, header)
-        bot.forward_message(ADMIN_ID, chat_id, message.message_id)
-    except Exception:
-        bot.send_message(chat_id, "❌ Не доставлено. Попробуй ещё раз или нажми /cancel.")
+        bot.forward_message(
+            ADMIN_ID,
+            chat_id,
+            message.message_id,
+        )
+    except Exception as error:
+        detail = str(error).replace(TOKEN, "[TOKEN HIDDEN]")
+        logging.error("Review delivery failed: %s", detail)
+
+        bot.send_message(
+            chat_id,
+            "❌ Не доставлено. Попробуй ещё раз или нажми /cancel.",
+        )
         return
 
     with lock:
@@ -87,87 +204,63 @@ def receive_review(message):
     )
 
 
-def begin_report(chat_id):
-    with lock:
-        reviews.discard(chat_id)
-        waiting.add(chat_id)
-    bot.send_message(
-        chat_id,
-        "🤝 Опиши проблему одним текстовым сообщением. /cancel — отмена.",
-    )
-
-@bot.message_handler(commands=["start", "site", "help"])
-def start(message):
-    if message.chat.type != "private":
-        bot.reply_to(message, "Напиши боту в личные сообщения.")
-        return
-    text = "Добро пожаловать в PC Сборщик!"
-    if message.from_user.id == ADMIN_ID:
-        text += "\nТы администратор этого бота."
-    bot.send_message(message.chat.id, text, reply_markup=menu())
-
-
-@bot.message_handler(commands=["id"])
-def show_id(message):
-    bot.reply_to(message, f"Твой Telegram ID: {message.from_user.id}")
-
-
-@bot.message_handler(commands=["report"])
-def report_command(message):
-    if message.chat.type == "private":
-        begin_report(message.chat.id)
-
-
-@bot.message_handler(commands=["cancel"])
-def cancel(message):
-    with lock:
-        waiting.discard(message.chat.id)
-        reviews.discard(message.chat.id)
-    bot.reply_to(message, "👌 Отменено.")
-
-
-@bot.message_handler(commands=["about"])
-def about(message):
-    bot.send_message(message.chat.id, "PC Сборщик — подбор деталей и базовые проверки совместимости. Характеристики нужно сверять с документацией производителей.")
-
-
-@bot.callback_query_handler(func=lambda call: call.data in ["report", "about"])
-def callback(call):
-    bot.answer_callback_query(call.id)
-    if call.message and call.message.chat.type == "private":
-        if call.data == "report":
-            begin_report(call.message.chat.id)
-        else:
-            about(call.message)
-
-
 @bot.message_handler(content_types=["text"])
 def receive_text(message):
     if message.chat.type != "private":
         return
+
+    chat_id = message.chat.id
+
     with lock:
-        pending = message.chat.id in waiting
+        pending = chat_id in waiting
+
     if not pending:
-        bot.send_message(message.chat.id, "Выбери действие:", reply_markup=menu())
+        bot.send_message(
+            chat_id,
+            "Выбери действие:",
+            reply_markup=menu(),
+        )
         return
+
+    if message.text.startswith("/"):
+        bot.send_message(
+            chat_id,
+            "✍️ Опиши проблему текстом или нажми /cancel.",
+        )
+        return
+
     user = message.from_user
-    username = "@" + user.username if user.username else "без username"
-        header = f"""💬 Новый отзыв
+    username = f"@{user.username}" if user.username else "без username"
+
+    header = f"""🐞 Новый отчёт об ошибке
 👤 {user.first_name} ({username})
 🆔 {user.id}"""
-    )
+
     try:
-        bot.send_message(ADMIN_ID, header, parse_mode="HTML")
-        bot.forward_message(ADMIN_ID, message.chat.id, message.message_id)
+        bot.send_message(ADMIN_ID, header)
+        bot.forward_message(
+            ADMIN_ID,
+            chat_id,
+            message.message_id,
+        )
     except Exception as error:
         detail = str(error).replace(TOKEN, "[TOKEN HIDDEN]")
-        logging.error("Report delivery failed: %s: %s", type(error).__name__, detail)
-        bot.send_message(message.chat.id, "Отчёт не доставлен. Попробуй позже или /cancel. Причина записана в Logs.")
+        logging.error("Report delivery failed: %s", detail)
+
+        bot.send_message(
+            chat_id,
+            "Отчёт не доставлен. Попробуй позже или /cancel. Причина записана в Logs.",
+        )
         return
+
     with lock:
-        waiting.discard(message.chat.id)
-        reviews.discard(message.chat.id)
-    bot.send_message(message.chat.id, "Спасибо! Отчёт доставлен разработчику.")
+        waiting.discard(chat_id)
+
+    bot.send_message(
+        chat_id,
+        "✅ Спасибо! Отчёт доставлен разработчику.",
+        reply_markup=menu(),
+    )
 
 
 if __name__ == "__main__":
