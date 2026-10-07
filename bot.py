@@ -168,6 +168,7 @@ def receive_text(message):
         return
     with lock:
         waiting.discard(message.chat.id)
+        reviews.discard(message.chat.id)
     bot.send_message(message.chat.id, "Спасибо! Отчёт доставлен разработчику.")
 
 
