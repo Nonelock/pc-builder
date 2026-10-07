@@ -6,6 +6,7 @@ import telebot
 from telebot import types
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = int(os.environ["ADMIN_ID"])
 SITE_URL = "https://nonelock.github.io/pc-builder/"
 DATA_FILE = Path("bot_data.json")
 
