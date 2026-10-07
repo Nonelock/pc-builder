@@ -66,7 +66,7 @@ def receive_review(message):
 
     user = message.from_user
     username = f"@{user.username}" if user.username else "без username"
-    header = f"💬 Новый отзыв
+        header = f"💬 Новый отзыв
 👤 {user.first_name} ({username})
 🆔 {user.id}"
 
