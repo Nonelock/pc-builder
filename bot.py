@@ -20,7 +20,76 @@ def menu():
     markup.add(types.InlineKeyboardButton("🗝️ Открыть конфигуратор", url=SITE_URL))
     markup.add(types.InlineKeyboardButton("🌍 Сообщить об ошибке", callback_data="report"))
     markup.add(types.InlineKeyboardButton("❤️ О проекте", callback_data="about"))
-    return markup
+        keyboard.add(
+        types.InlineKeyboardButton(
+            "💬 Оставить отзыв",
+            callback_data="review",
+        )
+    ) return markur 
+
+reviews = set()
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "review")
+def begin_review(call):
+    bot.answer_callback_query(call.id)
+
+    if not call.message or call.message.chat.type != "private":
+        return
+
+    chat_id = call.message.chat.id
+
+    with lock:
+        waiting.discard(chat_id)
+        reviews.add(chat_id)
+
+    bot.send_message(
+        chat_id,
+        "💬 Что понравилось и что стоит улучшить?
+
+✍️ Отправь одним текстовым сообщением.
+↩️ /cancel — отменить.",
+    )
+
+
+@bot.message_handler(
+    func=lambda message: message.chat.id in reviews,
+    content_types=["text"],
+)
+def receive_review(message):
+    chat_id = message.chat.id
+
+    if message.text.split()[0].split("@")[0].lower() == "/cancel":
+        with lock:
+            reviews.discard(chat_id)
+        bot.send_message(chat_id, "👌 Отменено.", reply_markup=menu())
+        return
+
+    if message.text.startswith("/"):
+        bot.send_message(chat_id, "✍️ Напиши отзыв текстом или нажми /cancel.")
+        return
+
+    user = message.from_user
+    username = f"@{user.username}" if user.username else "без username"
+    header = f"💬 Новый отзыв
+👤 {user.first_name} ({username})
+🆔 {user.id}"
+
+    try:
+        bot.send_message(ADMIN_ID, header)
+        bot.forward_message(ADMIN_ID, chat_id, message.message_id)
+    except Exception:
+        bot.send_message(chat_id, "❌ Не доставлено. Попробуй ещё раз или нажми /cancel.")
+        return
+
+    with lock:
+        reviews.discard(chat_id)
+
+    bot.send_message(
+        chat_id,
+        "✅ Спасибо за отзыв! Он доставлен разработчику.",
+        reply_markup=menu(),
+    )
 
 
 def begin_report(chat_id):
