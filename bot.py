@@ -244,4 +244,23 @@ def receive_text(message):
     with lock:
         waiting.discard(message.chat.id)
 
-    bot.send_mess
+    bot.send_message(
+        message.chat.id,
+        "✅ Спасибо! Отчёт доставлен разработчику.
+
+"
+        "💚 Ты помогаешь улучшать PC Сборщик!",
+        reply_markup=menu()
+    )
+
+
+if __name__ == "__main__":
+    print(
+        "🚀 PC Сборщик бот запущен",
+        flush=True
+    )
+
+    bot.infinity_polling(
+        timeout=30,
+        long_polling_timeout=30
+    )
