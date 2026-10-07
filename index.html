@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PC Сборщик — сборки и апгрейд</title>
+<style>
+:root{--bg:#0b1019;--panel:#142030;--text:#edf4ff;--muted:#a6b6cb;--line:#34445c;--accent:#65efb0;--bad:#ff7089;--warn:#ffd075}
+body.light{--bg:#edf2f8;--panel:#fff;--text:#172332;--muted:#536478;--line:#b4c4d5;--accent:#167448;--bad:#a92a43;--warn:#986000}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px system-ui,Arial}
+.wrap,main,footer{max-width:1250px;margin:auto;padding:20px}
+header .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.logo{font-weight:900;font-size:24px}
+.logo b,a{color:var(--accent)}
+main{display:grid;grid-template-columns:1.15fr 1fr;gap:20px}
+.hero{grid-column:1/-1}
+h1{font-size:28px}
+h2{font-size:20px}
+.muted,footer{color:var(--muted);line-height:1.6}
+.card{padding:20px;background:var(--panel);border:1px solid var(--line);border-radius:16px;margin-bottom:16px}
+.btns,.steps{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+button,select,input{font:inherit;padding:10px;border-radius:8px}
+button{background:var(--accent);color:var(--bg);border:1px solid transparent;cursor:pointer}
+button.secondary,.step{background:var(--bg);color:var(--text);border-color:var(--line)}
+button:disabled{opacity:.4;cursor:default}
+.step.active{border-color:var(--accent)}
+input,select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);margin:5px 0}
+input[type=checkbox]{width:auto}
+input[hidden]{display:none}
+label{display:block;margin:8px 0}
+.filters,.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.results{display:grid;gap:8px;max-height:380px;overflow:auto;margin:12px 0}
+.choice{background:var(--bg);color:var(--text);border:1px solid var(--line);text-align:left;line-height:1.5}
+.choice small{display:block;color:var(--muted)}
+.choice.selected{border-color:var(--accent)}
+.choice.bad{border-color:var(--bad)}
+.choice:hover,.choice:focus{outline:2px solid var(--accent)}
+.notice{border-left:3px solid var(--warn);padding:12px;margin:8px 0;background:var(--bg);line-height:1.5}
+.notice.bad{border-color:var(--bad)}
+.notice.ok{border-color:var(--accent)}
+.stat{padding:12px;border-radius:8px;background:var(--bg)}
+.stat small{display:block;color:var(--muted);margin-top:6px}
+.summary-row{padding:10px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+.summary-row .btns{margin:5px 0}
+.saved-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0}
+.saved-row span{flex:1}
+.details{line-height:1.7;overflow-wrap:anywhere}
+summary{cursor:pointer}
+table{border-collapse:collapse;width:100%;font-size:14px}
+td,th{border:1px solid var(--line);padding:8px;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+.table-wrap{overflow:auto}
+#status{color:var(--accent)}
+#printArea{display:none}
+a{overflow-wrap:anywhere}
+.mobile-budget{display:none}
+@media(max-width:850px){main{grid-template-columns:1fr}.card{padding:15px}.filters{grid-template-columns:1fr}.mobile-budget{display:block;position:sticky;bottom:0;padding:10px;background:var(--panel);border-top:1px solid var(--line);z-index:5}}
+@media print{body{background:#fff;color:#000}header,main,footer,.mobile-budget{display:none!important}#printArea{display:block;padding:12px}#printArea td,#printArea th{border-color:#777}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<div class="logo">PC<b>СБОРЩИК</b></div>
+<div class="btns">
+<button id="theme" class="secondary">Тема</button>
+<button id="about" class="secondary">О проверках</button>
+<button id="report" class="secondary">Обратная связь</button>
+<button id="importCat" class="secondary">Импорт каталога</button>
+<button id="exportCat" class="secondary">Экспорт каталога</button>
+</div>
+</div></header>
+
+<main>
+<section class="hero">
+<h1>Подбор ПК и апгрейд</h1>
+<p class="muted">Поиск показывает варианты сразу. Отмечайте имеющиеся детали, задавайте бюджет и сравнивайте сохранённые сборки. Цены и наличие магазинов автоматически не подключены.</p>
+<div class="btns">
+<button id="template">Черновики сборок</button>
+<button id="restore" class="secondary">Перенести старые сохранения</button>
+</div>
+<p class="muted" id="catalogInfo"></p>
+</section>
+
+<section>
+<div class="card">
+<div id="steps" class="steps"></div>
+<div id="content"></div>
+<div class="btns">
+<button id="prev">Назад</button>
+<button id="next">Далее</button>
+<button id="undo" class="secondary">Отменить изменение</button>
+<button id="reset" class="secondary">Сбросить</button>
+<button id="save" class="secondary">Сохранить</button>
+<button id="export" class="secondary">Экспорт</button>
+<button id="import" class="secondary">Импорт</button>
+<button id="copy" class="secondary">Скопировать</button>
+<button id="share" class="secondary">Ссылка</button>
+<button id="print" class="secondary">Печать / PDF</button>
+</div>
+<p id="status" role="status" aria-live="polite"></p>
+<div id="saved"></div>
+<h2>Сравнить сборки</h2>
+<div class="filters"><select id="compareA" aria-label="Первая сборка"></select><select id="compareB" aria-label="Вторая сборка"></select></div>
+<div class="table-wrap" id="comparison"></div>
+</div>
+</section>
+
+<aside>
+<div class="card">
+<h2>Бюджет покупки</h2>
+<label>Лимит, ₽<input id="budget" type="number" min="0" placeholder="Не задан"></label>
+<div class="stats">
+<div class="stat"><b id="cost"></b><small>Известные расходы на покупку</small></div>
+<div class="stat"><b id="remaining"></b><small>Остаток по известным ценам</small></div>
+<div class="stat"><b id="power"></b><small>Грубая оценка, не пиковое потребление</small></div>
+<div class="stat"><b id="partsCount"></b><small>Выбрано компонентов</small></div>
+</div>
+<p class="muted" id="priceNote"></p>
+<h2>Ваша сборка</h2>
+<div id="summary"></div>
+</div>
+<div class="card">
+<h2 id="score"></h2>
+<p id="rules" class="muted"></p>
+<div id="messages"></div>
+</div>
+</aside>
+</main>
+
+<div class="mobile-budget" id="mobile"></div>
+
+<footer>Обобщённые позиции не являются конкретными товарами. Все характеристики, BIOS, CPU Support List, QVL, питание и монтажные зазоры проверяйте по документации. Черновики не являются проверенными рекомендациями для покупки. Нет найденных конфликтов ≠ гарантия совместимости.<br>Данные хранятся в этом браузере. Рейтинги Technical City и общая популярность автоматически не загружены.<br><a href="https://technical.city/ru/cpu/rating" target="_blank" rel="noopener noreferrer">Рейтинги CPU</a> · <a href="https://technical.city/ru/gpu/rating" target="_blank" rel="noopener noreferrer">Рейтинги GPU</a></footer>
+
+<section id="printArea"></section>
+<input type="file" id="catFile" accept=".json,application/json" hidden>
+<input type="file" id="buildFile" accept=".json,application/json" hidden>
+
+<script>
+const BASE={"cpu":[{"id":"athlon640","name":"AMD Athlon II X4 640","socket":"AM3","tdp":95,"price_min":2500,"price_max":4500,"price_date":"2026-10-07","price_source":"б/у рынок РФ"},{"id":"phenom955","name":"AMD Phenom II X4 955","socket":"AM3","tdp":125,"price_min":3500,"price_max":5500,"price_date":"2026-10-07","price_source":"б/у рынок РФ"},{"id":"phenom965","name":"AMD Phenom II X4 965","socket":"AM3","tdp":125,"price_min":4000,"price_max":6000,"price_date":"2026-10-07","price_source":"б/у рынок РФ"},{"id":"phenom1055","name":"AMD Phenom II X6 1055T","socket":"AM3","tdp":125,"price_min":5000,"price_max":7000,"price_date":"2026-10-07","price_source":"б/у рынок РФ"},{"id":"phenom1090","name":"AMD Phenom II X6 1090T","socket":"AM3","tdp":125,"price_min":6000,"price_max":8000,"price_date":"2026-10-07","price_source":"б/у рынок РФ"},{"id":"fx4300","name":"AMD FX-4300","socket":"AM3+","tdp":95,"price_min":2000,"price_max":3000,"price_date":"2026-10-07","price_source":"б/у рынок РФ"},{"id":"fx6300","name":"AMD FX-6300","socket":"AM3+","tdp":95,"price_min":2500,"price_max":3500,"price_date":"2026-10-07","price_source":"б/у рынок РФ"},{"id":"fx6350","name":"AMD FX-6350","socket":"AM3+","tdp":125,"price_min":3000,"price_max":5000,"price_date":"2026-10-07","price_source":"б/у рынок РФ"},{"id":"fx8320","name":"AMD FX-8320","socket":"AM3+","tdp":125,"price_min":4000,"price_max":6000,"price_date":"2026-10-07","price_source":"б/у рынок РФ"},{"id":"fx8320e","name":"AMD FX-8320E","socket":"AM3+","tdp":95,"price_min":4500,"price_max":6500,"price_date":"2026-10-07","price_source":"б/у рынок РФ"},{"id":"fx8350","name":"AMD FX-8350","socket":"AM3+","tdp":125,"price_min":5500,"price_max":7500,"price_date":"2026-10-07","price_source":"б/у рынок РФ"},{"id":"fx8370","name":"AMD FX-8370","socket":"AM3+","tdp":125,"price_min":6500,"price_max":8500,"price_date":"2026-10-07","price_source":"б/у рынок РФ"},{"id":"5600","name":"AMD Ryzen 5 5600","socket":"AM4","tdp":65,"price_min":9000,"price_max":13000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"5600x","name":"AMD Ryzen 5 5600X","socket":"AM4","tdp":65,"price_min":11000,"price_max":15000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"5700x","name":"AMD Ryzen 7 5700X","socket":"AM4","tdp":65,"price_min":12000,"price_max":16000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"5800x3d","name":"AMD Ryzen 7 5800X3D","socket":"AM4","tdp":105,"price_min":22000,"price_max":30000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"7500f","name":"AMD Ryzen 5 7500F","socket":"AM5","tdp":65,"price_min":11000,"price_max":14000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"7600","name":"AMD Ryzen 5 7600","socket":"AM5","tdp":65,"price_min":17000,"price_max":21000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"7700","name":"AMD Ryzen 7 7700","socket":"AM5","tdp":65,"price_min":24000,"price_max":30000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"7800x3d","name":"AMD Ryzen 7 7800X3D","socket":"AM5","tdp":120,"price_min":35000,"price_max":43000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"7900","name":"AMD Ryzen 9 7900","socket":"AM5","tdp":65,"price_min":30000,"price_max":38000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"7950x","name":"AMD Ryzen 9 7950X","socket":"AM5","tdp":170,"price_min":46000,"price_max":58000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"12100f","name":"Intel Core i3-12100F","socket":"LGA1700","tdp":58,"price_min":7500,"price_max":10500,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"12400f","name":"Intel Core i5-12400F","socket":"LGA1700","tdp":65,"price_min":9500,"price_max":12500,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"12600kf","name":"Intel Core i5-12600KF","socket":"LGA1700","tdp":125,"price_min":14000,"price_max":18000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"13600kf","name":"Intel Core i5-13600KF","socket":"LGA1700","tdp":125,"price_min":19000,"price_max":25000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"14600kf","name":"Intel Core i5-14600KF","socket":"LGA1700","tdp":125,"price_min":24000,"price_max":30000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"14700kf","name":"Intel Core i7-14700KF","socket":"LGA1700","tdp":125,"price_min":31000,"price_max":39000,"price_date":"2026-10-07","price_source":"магазины РФ"},{"id":"14900kf","name":"Intel Core i9-14900KF","socket":"LGA1700","tdp":125,"price_min":46000,"price_max":58000,"price_date":"2026-10-07","price_source":"магазины РФ"}],"board":[{"id":"880gm","name":"ASRock 880GM-LE","socket":"AM3","ram_type":"DDR3","form":"mATX","m2_slots":0,"sata_ports":6,"price_min":3000,"price_max":5000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"880ud","name":"Gigabyte GA-880GM-UD2H rev. 1.4","socket":"AM3","ram_type":"DDR3","form":"mATX","m2_slots":0,"sata_ports":null,"price_min":4000,"price_max":6000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"78usb","name":"Gigabyte GA-78LMT-USB3 rev. 6.0","socket":"AM3+","ram_type":"DDR3","form":"mATX","m2_slots":0,"sata_ports":6,"price_min":4500,"price_max":6500,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"970pro","name":"ASRock 970 Pro3 R2.0","socket":"AM3+","ram_type":"DDR3","form":"ATX","m2_slots":0,"sata_ports":6,"price_min":6000,"price_max":8000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"b450","name":"MSI B450M-A PRO MAX II","socket":"AM4","ram_type":"DDR4","form":"mATX","m2_slots":1,"sata_ports":4,"price_min":6000,"price_max":8000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"b550","name":"ASUS TUF GAMING B550-PLUS","socket":"AM4","ram_type":"DDR4","form":"ATX","m2_slots":2,"sata_ports":6,"price_min":10000,"price_max":14000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"b550m","name":"Gigabyte B550M DS3H","socket":"AM4","ram_type":"DDR4","form":"mATX","m2_slots":null,"sata_ports":null,"price_min":8000,"price_max":10000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"x570","name":"ASRock X570 Pro4","socket":"AM4","ram_type":"DDR4","form":"ATX","m2_slots":null,"sata_ports":null,"price_min":12000,"price_max":16000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"a520","name":"MSI A520M-A PRO","socket":"AM4","ram_type":"DDR4","form":"mATX","m2_slots":1,"sata_ports":4,"price_min":5000,"price_max":7000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"b650","name":"MSI PRO B650M-A WIFI","socket":"AM5","ram_type":"DDR5","form":"mATX","m2_slots":2,"sata_ports":4,"price_min":13000,"price_max":17000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"b650atx","name":"ASUS TUF GAMING B650-PLUS","socket":"AM5","ram_type":"DDR5","form":"ATX","m2_slots":null,"sata_ports":null,"price_min":15000,"price_max":19000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"prors","name":"ASRock B650M Pro RS","socket":"AM5","ram_type":"DDR5","form":"mATX","m2_slots":3,"sata_ports":4,"price_min":13000,"price_max":17000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"prorswifi","name":"ASRock B650M Pro RS WiFi","socket":"AM5","ram_type":"DDR5","form":"mATX","m2_slots":3,"sata_ports":4,"price_min":14000,"price_max":18000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"a620","name":"ASRock A620M-HDV/M.2","socket":"AM5","ram_type":"DDR5","form":"mATX","m2_slots":null,"sata_ports":null,"price_min":8000,"price_max":10000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"x670","name":"Gigabyte X670 GAMING X","socket":"AM5","ram_type":"DDR5","form":"ATX","m2_slots":null,"sata_ports":null,"price_min":19000,"price_max":25000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"h610","name":"MSI PRO H610M-E DDR4","socket":"LGA1700","ram_type":"DDR4","form":"mATX","m2_slots":1,"sata_ports":4,"price_min":6000,"price_max":8000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"b660","name":"ASUS TUF GAMING B660-PLUS WIFI D4","socket":"LGA1700","ram_type":"DDR4","form":"ATX","m2_slots":null,"sata_ports":null,"price_min":11000,"price_max":15000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"b760","name":"Gigabyte B760 GAMING X DDR5","socket":"LGA1700","ram_type":"DDR5","form":"ATX","m2_slots":null,"sata_ports":null,"price_min":14000,"price_max":18000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"z690","name":"MSI PRO Z690-A DDR5","socket":"LGA1700","ram_type":"DDR5","form":"ATX","m2_slots":null,"sata_ports":null,"price_min":17000,"price_max":23000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"},{"id":"z790","name":"ASUS TUF GAMING Z790-PLUS DDR5","socket":"LGA1700","ram_type":"DDR5","form":"ATX","m2_slots":null,"sata_ports":null,"price_min":20000,"price_max":26000,"price_date":"2026-10-07","price_source":"магазины РФ + б/у"}],"ram":[{"id":"DDR3-1333-8","name":"Подбор DDR3 8 ГБ (2×4) · 1333 MT/s","ram_type":"DDR3","speed":1333,"capacity":8,"modules":2,"generic":true,"price_min":3600,"price_max":5000,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR3-1333-16","name":"Подбор DDR3 16 ГБ (2×8) · 1333 MT/s","ram_type":"DDR3","speed":1333,"capacity":16,"modules":2,"generic":true,"price_min":6000,"price_max":8200,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR3-1600-8","name":"Подбор DDR3 8 ГБ (2×4) · 1600 MT/s","ram_type":"DDR3","speed":1600,"capacity":8,"modules":2,"generic":true,"price_min":3900,"price_max":5700,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR3-1600-16","name":"Подбор DDR3 16 ГБ (2×8) · 1600 MT/s","ram_type":"DDR3","speed":1600,"capacity":16,"modules":2,"generic":true,"price_min":6300,"price_max":8900,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR3-1600-32","name":"Подбор DDR3 32 ГБ (2×16) · 1600 MT/s","ram_type":"DDR3","speed":1600,"capacity":32,"modules":2,"generic":true,"price_min":11100,"price_max":15300,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR3-1866-16","name":"Подбор DDR3 16 ГБ (2×8) · 1866 MT/s","ram_type":"DDR3","speed":1866,"capacity":16,"modules":2,"generic":true,"price_min":6800,"price_max":9400,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR4-3200-16","name":"Подбор DDR4 16 ГБ (2×8) · 3200 MT/s","ram_type":"DDR4","speed":3200,"capacity":16,"modules":2,"generic":true,"price_min":7300,"price_max":10900,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR4-3200-32","name":"Подбор DDR4 32 ГБ (2×16) · 3200 MT/s","ram_type":"DDR4","speed":3200,"capacity":32,"modules":2,"generic":true,"price_min":12100,"price_max":17300,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR4-3200-64","name":"Подбор DDR4 64 ГБ (2×32) · 3200 MT/s","ram_type":"DDR4","speed":3200,"capacity":64,"modules":2,"generic":true,"price_min":21700,"price_max":30100,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR4-3600-16","name":"Подбор DDR4 16 ГБ (2×8) · 3600 MT/s","ram_type":"DDR4","speed":3600,"capacity":16,"modules":2,"generic":true,"price_min":7800,"price_max":11400,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR4-3600-32","name":"Подбор DDR4 32 ГБ (2×16) · 3600 MT/s","ram_type":"DDR4","speed":3600,"capacity":32,"modules":2,"generic":true,"price_min":12600,"price_max":17800,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR5-5200-16","name":"Подбор DDR5 16 ГБ (2×8) · 5200 MT/s","ram_type":"DDR5","speed":5200,"capacity":16,"modules":2,"generic":true,"price_min":9300,"price_max":13900,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR5-5200-32","name":"Подбор DDR5 32 ГБ (2×16) · 5200 MT/s","ram_type":"DDR5","speed":5200,"capacity":32,"modules":2,"generic":true,"price_min":14100,"price_max":20300,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR5-5600-32","name":"Подбор DDR5 32 ГБ (2×16) · 5600 MT/s","ram_type":"DDR5","speed":5600,"capacity":32,"modules":2,"generic":true,"price_min":16600,"price_max":23800,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR5-5600-64","name":"Подбор DDR5 64 ГБ (2×32) · 5600 MT/s","ram_type":"DDR5","speed":5600,"capacity":64,"modules":2,"generic":true,"price_min":26200,"price_max":36600,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR5-6000-32","name":"Подбор DDR5 32 ГБ (2×16) · 6000 MT/s","ram_type":"DDR5","speed":6000,"capacity":32,"modules":2,"generic":true,"price_min":18600,"price_max":25800,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"DDR5-6000-64","name":"Подбор DDR5 64 ГБ (2×32) · 6000 MT/s","ram_type":"DDR5","speed":6000,"capacity":64,"modules":2,"generic":true,"price_min":28200,"price_max":38600,"price_date":"2026-10-07","price_source":"ориентир"},{"id":"kf5200","name":"Kingston FURY Beast KF552C40BBK2-32","ram_type":"DDR5","speed":5200,"capacity":32,"cl":40,"modules":2,"price_min":6500,"price_max":9500,"price_date":"2026-10-07","price_source":"https
